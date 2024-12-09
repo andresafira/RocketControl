@@ -1,13 +1,12 @@
-from utils import sgn
-from constants import D_THRUST, MAX_THRUST, D_NOZZLE_ANGLE, MAX_NOZZLE_ANGLE
-from constants import AIR_RES_X, AIR_RES_Z, MASS, GRAVITY, INERTIA
-from constants import D_TIME, eps
+from utils import sgn, eps
+from constants import D_THRUST, MAX_THRUST, D_NOZZLE_ANGLE, MAX_NOZZLE_ANGLE, POS_CM, POS_CG
+from constants import AIR_RES_X, AIR_RES_Z, ROCKET_MASS, GRAVITY, INERTIA, D_TIME, INERTIA_NOZZLE
 from math import cos, sin, pi, fabs, sqrt, tan
-from Control import PFController, FullPIDController
+from control import PFController, FullPIDController
 
 
 def windForce(k, w, v):
-    return k*(w-v)
+    return 0 #k*(w-v)
 
 
 class Rocket:
@@ -52,19 +51,20 @@ class Rocket:
     def turnRight(self):
         # Only accessible if self.playable = True
         self.nozzleAngle -= D_NOZZLE_ANGLE
-        self.nozzleAngle = min(self.nozzleAngle, MAX_NOZZLE_ANGLE)
+        self.nozzleAngle = max(self.nozzleAngle, -MAX_NOZZLE_ANGLE)
 
     def turnLeft(self):
         # Only accessible if self.playable = True
         self.nozzleAngle += D_NOZZLE_ANGLE
-        self.nozzleAngle = max(self.nozzleAngle, -MAX_NOZZLE_ANGLE)
+        self.nozzleAngle = min(self.nozzleAngle, MAX_NOZZLE_ANGLE)
 
-    def apply_command(self, vr, xr):
+    def apply_command(self, vr, zr):
         """Method that applies the gets the command of the controllers and
         apply to the vehicle motion"""
         pass
 
     def move(self, windX, windZ):
+        print(f'X = {self.locX:.2f}, Z = {self.locZ:.2f}, theta = {self.theta:.2f}, nozzle = {self.nozzleAngle:.2f}, T = {self.thrust}, sx = {self.speedX:.2f}, sz = {self.speedZ:.2f}, omega = {self.omega:.2f}')
         self.locX += self.speedX * D_TIME
         self.locZ += self.speedZ * D_TIME
         self.theta += self.omega * D_TIME
@@ -73,18 +73,18 @@ class Rocket:
         windForceZ: float = windForce(AIR_RES_Z, windZ, self.speedZ)
 
         forceX: float = windForceX + self.thrust * sin(self.theta + self.nozzleAngle)
-        forceZ: float = windForceZ + self.thrust * cos(self.theta + self.nozzleAngle) - MASS*GRAVITY
-        torque: float = (posCG - posCM) * (windForceX * cos(self.theta) - windForceZ * sin(self.theta)) - self.thrust * posCM * sin(self.nozzleAngle)
+        forceZ: float = windForceZ + self.thrust * cos(self.theta + self.nozzleAngle) - ROCKET_MASS*GRAVITY
+        torque: float = (POS_CG - POS_CM) * (windForceX * cos(self.theta) - windForceZ * sin(self.theta)) - self.thrust * POS_CM * sin(self.nozzleAngle)
 
-        self.speedX += forceX / MASS * D_TIME
-        self.speedZ += forceZ / MASS * D_TIME
+        self.speedX += forceX / ROCKET_MASS * D_TIME
+        self.speedZ += forceZ / ROCKET_MASS * D_TIME
         self.omega += torque / INERTIA * D_TIME
         
         if self.playable:
             # The steering wheel inertia is only applied under user control in order to
             # give a better user experience. The control system do not experience such
             # effect since it is supposed that it has full control of the steering wheel
-            self.nozzleAngle -= sgn(self.nozzleAngle) * inertiaNozzle
+            self.nozzleAngle -= sgn(self.nozzleAngle) * INERTIA_NOZZLE
         
         if fabs(self.nozzleAngle) < 2 * eps * pi:
             self.nozzleAngle = 0
