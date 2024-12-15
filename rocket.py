@@ -6,7 +6,7 @@ from control import PFController, FullPIDController
 
 
 def windForce(k, w, v):
-    return 0 #k*(w-v)
+    return k*(w-v)*fabs(w-v)
 
 
 class Rocket:
@@ -58,13 +58,26 @@ class Rocket:
         self.nozzleAngle += D_NOZZLE_ANGLE
         self.nozzleAngle = min(self.nozzleAngle, MAX_NOZZLE_ANGLE)
 
-    def apply_command(self, vr, zr):
+    def updateSpeedController(self, windZ):
+        xi = 0.7
+        omega = 10
+        sign = sgn(windZ - self.speedZ)
+        kp = 2 * ROCKET_MASS * xi * omega + 2 * AIR_RES_Z * windZ
+        kd = 0
+        ki = ROCKET_MASS * omega ** 2
+        wind_term = AIR_RES_Z * (windZ**2 + self.speedZ**2) * sign
+        offset_command = ROCKET_MASS * GRAVITY - wind_term 
+        self.speed_controller.update_constants(kp, ki, kd, offset_command)
+    
+    def applyCommand(self, vz, xr, windZ):
         """Method that applies the gets the command of the controllers and
         apply to the vehicle motion"""
-        pass
+        self.nozzleAngle = -self.position_controller.control(xr, self.locX)
+        self.updateSpeedController(windZ)
+        self.thrust = self.speed_controller.control(vz, self.speedZ)
 
     def move(self, windX, windZ):
-        print(f'X = {self.locX:.2f}, Z = {self.locZ:.2f}, theta = {self.theta:.2f}, nozzle = {self.nozzleAngle:.2f}, T = {self.thrust}, sx = {self.speedX:.2f}, sz = {self.speedZ:.2f}, omega = {self.omega:.2f}')
+        print(f'X = {self.locX:.2f}, Z = {self.locZ:.2f}, theta = {self.theta:.2f}, nozzle = {self.nozzleAngle:.2f}, T = {self.thrust:.2f}, sx = {self.speedX:.2f}, sz = {self.speedZ:.2f}, omega = {self.omega:.2f}')
         self.locX += self.speedX * D_TIME
         self.locZ += self.speedZ * D_TIME
         self.theta += self.omega * D_TIME

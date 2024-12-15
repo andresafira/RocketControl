@@ -35,10 +35,17 @@ class Simulation:
         self.draw_ref = draw_reference_line
         self.draw_roc = draw_rocket_line
 
+        self.windX = 0
+        self.windZ = 0
+
         self.update_check = 0
 
     def reset(self):
-        self.rocket = Rocket(locX=WIDTH/2)
+        self.rocket = Rocket(locX=WIDTH/2, locZ=ROCKET_HEIGHT/2)
+
+    def setWind(self, x, z):
+        self.windX = x
+        self.windZ = z
 
     def get_reference_parameters(self) -> tuple[float, float]:
         """Function that returns the values of vr and yr (reference values for
@@ -75,6 +82,8 @@ class Simulation:
     def draw_scenario(self):
         self.screen.blit(self.background_sprite, (0, clip(self.rocket.locZ*M2P, HEIGHT*M2P)))
         self.screen.blit(self.background_sprite, (0, clip(self.rocket.locZ*M2P - HEIGHT*M2P, -HEIGHT*M2P)))
+        pygame.draw.rect(self.screen, (0, 255, 0), (0, (HEIGHT/2 + self.rocket.locZ)*M2P, WIDTH*M2P, HEIGHT*M2P))
+
         
         if self.draw_ref:
             for i in range(1, len(self.reference_points)):
@@ -102,7 +111,10 @@ class Simulation:
                 del self.rocket_points[0]
 
         self.draw_scenario()
-        self.rocket.move(0, 0)
+        self.rocket.move(self.windX, self.windZ)
         if self.rocket.locX < 0 or self.rocket.locX > WIDTH:
             self.reset()
+        if self.rocket.locZ - fabs(cos(self.rocket.theta))*ROCKET_HEIGHT/2 < 0:
+            self.rocket.locZ = fabs(cos(self.rocket.theta))*ROCKET_HEIGHT/2
+            self.rocket.speedZ = 0
         pygame.display.flip()

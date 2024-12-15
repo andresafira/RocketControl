@@ -12,6 +12,13 @@ class PIDController:
 
         self.reset()
         self.calculate_factors()
+
+    def update_constants(self, kp, ki, kd, max_command):
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.max_command = max_command
+        self.calculate_factors()
     
     def calculate_factors(self):
         """multiplying factors of the Tustin implementation
@@ -58,6 +65,12 @@ class PIDFilter:
         
         self.reset()
         self.calculate_factors()
+    
+    def update_constants(self, kp, ki, kd):
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.calculate_factors()
 
     def calculate_factors(self):
         u0 = 4*self.kd + 2*self.kp*self.T + self.T*self.T*self.ki
@@ -84,15 +97,18 @@ class PIDFilter:
 class FullPIDController:
     """Wraper class that represents the combined effect of the
     entire Controller: PID + Pre-Filter"""
-    def __init__(self, kp, ki, kd, sample_time, max_command):
-        self.PID = PIDController(kp, ki, kd, sample_time, max_command)
+    def __init__(self, kp, ki, kd, sample_time, max_command, offset_command):
+        self.PID = PIDController(kp, ki, kd, sample_time, max_command - offset_command)
         self.filter = PIDFilter(kp, ki, kd, sample_time)
+        self.u_max = max_command
+        self.u0 = offset_command
         self.name = "PID"
     
-    def calculate_factors(self):
-        self.PID.calculate_factors()
-        self.filter.calculate_factors()
-
+    def update_constants(self, kp, ki, kd, offset_command):
+        self.u0 = offset_command
+        self.PID.update_constants(kp, ki, kd, self.u_max - offset_command)
+        self.filter.update_constants(kp, ki, kd)
+    
     def reset(self):
         self.PID.reset()
         self.filter.reset()
@@ -101,7 +117,7 @@ class FullPIDController:
         """Control function that applies the filter to the input
         value and then performs the PID Control on the new reference"""
         yr_f = self.filter.control(yr)
-        return self.PID.control(yr_f, y)
+        return self.PID.control(yr_f, y) + self.u0
 
 
 class PFController:
