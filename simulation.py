@@ -103,7 +103,7 @@ class Simulation:
 
         self.draw_rocket()
 
-    def update(self):
+    def update(self, verbose = False):
         self.screen.fill(BLACK)
         if self.draw_roc:
             self.rocket_points.append((self.rocket.locX, self.rocket.locZ))
@@ -111,10 +111,10 @@ class Simulation:
                 del self.rocket_points[0]
 
         self.draw_scenario()
-        self.rocket.move(self.windX, self.windZ)
+        self.rocket.move(self.windX, self.windZ, verbose = verbose)
         if self.rocket.locX < 0 or self.rocket.locX > WIDTH:
             self.reset()
-        if self.rocket.locZ - fabs(cos(self.rocket.theta))*ROCKET_HEIGHT/2 < 0:
-            self.rocket.locZ = fabs(cos(self.rocket.theta))*ROCKET_HEIGHT/2
-            self.rocket.speedZ = 0
+        # if self.rocket.locZ - fabs(cos(self.rocket.theta))*ROCKET_HEIGHT/2 < 0:
+        #     self.rocket.locZ = fabs(cos(self.rocket.theta))*ROCKET_HEIGHT/2
+        #     self.rocket.speedZ = 0
         pygame.display.flip()

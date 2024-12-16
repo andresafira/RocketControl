@@ -1,8 +1,9 @@
 from utils import sgn, eps
 from constants import D_THRUST, MAX_THRUST, D_NOZZLE_ANGLE, MAX_NOZZLE_ANGLE, POS_CM, POS_CG
 from constants import AIR_RES_X, AIR_RES_Z, ROCKET_MASS, GRAVITY, INERTIA, D_TIME, INERTIA_NOZZLE
+from constants import THRUST_THRESHOLD
 from math import cos, sin, pi, fabs, sqrt, tan
-from control import PFController, FullPIDController
+from control import FullPIDController, FullPDController
 
 
 def windForce(k, w, v):
@@ -33,10 +34,11 @@ class Rocket:
         self.playable: bool = True
         self.nozzleAngle: float = 0
 
-    def set_controllers(self, speed_controller: PFController,
-                              position_controller: FullPIDController):
-        self.speed_controller = speed_controller
-        self.position_controller = position_controller
+    def set_controllers(self, speed_ctrl: FullPIDController,
+                              position_ctrl: FullPDController, theta_ctrl = FullPDController):
+        self.speed_controller = speed_ctrl
+        self.position_controller = position_ctrl
+        self.theta_controller = theta_ctrl
 
     def increaseThrust(self):
         # Only accessible if self.playable = True
@@ -68,16 +70,41 @@ class Rocket:
         wind_term = AIR_RES_Z * (windZ**2 + self.speedZ**2) * sign
         offset_command = ROCKET_MASS * GRAVITY - wind_term 
         self.speed_controller.update_constants(kp, ki, kd, offset_command)
+
+    def updatePositionController(self, windX, windZ):
+        xi_x = 1
+        omega_x = 5
+        sign_x = sgn(windX - self.speedX)
+        sign_z = sgn(windZ - self.speedZ)
+        T = max(THRUST_THRESHOLD, self.thrust)
+        kd = 2 * (ROCKET_MASS * omega_x * xi_x - sign_x * AIR_RES_X * windX) / T
+        kp = ROCKET_MASS * omega_x**2 / T
+        offset_command = -sign_x * AIR_RES_X * (windX**2 + self.speedX**2) / T
+        self.position_controller.update_constants(kp, kd, offset_command)
+
+        xi_theta = 0.7
+        omega_theta = 10
+        beta = (POS_CG - POS_CM) * AIR_RES_X * (windX - self.speedX)**2 * sign_x
+        gamma = (POS_CG - POS_CM) * AIR_RES_Z * (windZ - self.speedZ)**2 * sign_z
+        kd = -2 * INERTIA * xi_theta * omega_theta / (T * POS_CM)
+        kp = (gamma - INERTIA * omega_theta**2) / (T * POS_CM)
+        offset_command = beta / (T * POS_CM)
+        self.theta_controller.update_constants(kp, kd, offset_command)
     
-    def applyCommand(self, vz, xr, windZ):
+    def applyCommand(self, vz, xr, windX, windZ):
         """Method that applies the gets the command of the controllers and
         apply to the vehicle motion"""
-        self.nozzleAngle = -self.position_controller.control(xr, self.locX)
+        self.updatePositionController(windX, windZ)
+        theta_r = self.position_controller.control(xr, self.locX)
+        self.nozzleAngle = self.theta_controller.control(theta_r, self.theta)
+        
         self.updateSpeedController(windZ)
         self.thrust = self.speed_controller.control(vz, self.speedZ)
+        return theta_r
 
-    def move(self, windX, windZ):
-        print(f'X = {self.locX:.2f}, Z = {self.locZ:.2f}, theta = {self.theta:.2f}, nozzle = {self.nozzleAngle:.2f}, T = {self.thrust:.2f}, sx = {self.speedX:.2f}, sz = {self.speedZ:.2f}, omega = {self.omega:.2f}')
+    def move(self, windX, windZ, verbose = False):
+        if verbose:
+            print(f'X = {self.locX:.2f}, Z = {self.locZ:.2f}, theta = {self.theta*180/pi:.2f}, nozzle = {self.nozzleAngle*180/pi:.2f}, T = {self.thrust:.2f}, sx = {self.speedX:.2f}, sz = {self.speedZ:.2f}, omega = {self.omega*pi/180:.2f}')
         self.locX += self.speedX * D_TIME
         self.locZ += self.speedZ * D_TIME
         self.theta += self.omega * D_TIME
