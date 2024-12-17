@@ -97,16 +97,17 @@ class PIDFilter:
 class FullPIDController:
     """Wraper class that represents the combined effect of the
     entire Controller: PID + Pre-Filter"""
-    def __init__(self, sample_time, max_command, offset_command = 1, kp = 1, ki = 1, kd = 1):
-        self.PID = PIDController(kp, ki, kd, sample_time, max_command-offset_command, -max_command-offset_command)
+    def __init__(self, sample_time, min_command, max_command, offset_command = 1, kp = 1, ki = 1, kd = 1):
+        self.PID = PIDController(kp, ki, kd, sample_time, max_command-offset_command, min_command-offset_command)
         self.filter = PIDFilter(kp, ki, kd, sample_time)
         self.u_max = max_command
+        self.u_min = min_command
         self.u0 = offset_command
         self.name = "PID"
     
     def update_constants(self, kp, ki, kd, offset_command):
         self.u0 = offset_command
-        self.PID.update_constants(kp, ki, kd, self.u_max-offset_command, -self.u_max-offset_command)
+        self.PID.update_constants(kp, ki, kd, self.u_max-offset_command, self.u_min-offset_command)
         self.filter.update_constants(kp, ki, kd)
     
     def reset(self):

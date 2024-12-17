@@ -1,6 +1,4 @@
-from constants import D_TIME, BLACK, WHITE, RED, M2P, WIDTH, HEIGHT
-from constants import ROCKET_WIDTH, ROCKET_HEIGHT, FIRE_WIDTH, FIRE_HEIGHT
-from constants import ROCKET_SPRITE, BACKGROUND_SPRITE, FIRE_SPRITE, MAX_THRUST
+from constants import *
 from rocket import Rocket
 
 from utils import clip
@@ -16,16 +14,18 @@ from rocket import Rocket
 
 class Simulation:
     """Main simulation engine that manages the interaction between objects"""
-    def __init__(self, draw_reference_line: bool = False, draw_rocket_line: bool = False):
+    def __init__(self, ground_physics: bool = True, draw_reference_line: bool = False, draw_rocket_line: bool = False):
         pygame.init()
 
         self.screen = pygame.display.set_mode((WIDTH*M2P, HEIGHT*M2P))
         pygame.display.set_caption("Control System Simulation")
-        self.background_sprite = scale(load(BACKGROUND_SPRITE), (WIDTH*M2P, HEIGHT*M2P))
+        self.background_sprite = scale(load(BACKGROUND_SPRITE), (1.2*WIDTH*M2P, HEIGHT*M2P))
         self.rocket_sprite = scale(load(ROCKET_SPRITE), (ROCKET_WIDTH*M2P, ROCKET_HEIGHT*M2P))
         self.fire_sprite = flip(scale(load(FIRE_SPRITE), (FIRE_WIDTH*M2P, FIRE_HEIGHT*M2P)), False, True)
+        self.ground_sprite = scale(load(GROUND_SPRITE), (WIDTH*M2P, HEIGHT*M2P/2))
         
         self.rocket = Rocket(locX=WIDTH/2)
+        self.ground_physics = ground_physics
 
         self.reference_points = [] # reference points (xr) to show on screen 
         self.max_ref = 100 # maximum number of reference points stored
@@ -46,18 +46,6 @@ class Simulation:
     def setWind(self, x, z):
         self.windX = x
         self.windZ = z
-
-    def get_reference_parameters(self) -> tuple[float, float]:
-        """Function that returns the values of vr and yr (reference values for
-        the control system to follow)"""
-        vr: float = 0.0
-        zr: float = 0.0
-        
-        if self.draw_ref:
-            self.reference_points.append((zr, self.rocket.locZ))
-            if len(self.reference_points) > self.max_ref:
-                del self.reference_points[0]
-        return vr, zr
 
     def draw_object(self, sprite, pos: tuple):
         anchored_pos = (pos[0], HEIGHT*M2P/2 + pos[1] - self.rocket.locZ*M2P)
@@ -80,28 +68,33 @@ class Simulation:
         self.draw_object(rocket, pos)
 
     def draw_scenario(self):
-        self.screen.blit(self.background_sprite, (0, clip(self.rocket.locZ*M2P, HEIGHT*M2P)))
-        self.screen.blit(self.background_sprite, (0, clip(self.rocket.locZ*M2P - HEIGHT*M2P, -HEIGHT*M2P)))
-        pygame.draw.rect(self.screen, (0, 255, 0), (0, (HEIGHT/2 + self.rocket.locZ)*M2P, WIDTH*M2P, HEIGHT*M2P))
-
+        x = -WIDTH*M2P/10
+        self.screen.blit(self.background_sprite, (x, clip(self.rocket.locZ*M2P, HEIGHT*M2P)))
+        self.screen.blit(self.background_sprite, (x, clip(self.rocket.locZ*M2P - HEIGHT*M2P, -HEIGHT*M2P)))
+        self.screen.blit(self.ground_sprite,     (0, (HEIGHT/2 + self.rocket.locZ)*M2P))
+        
+        self.draw_rocket()
         
         if self.draw_ref:
             for i in range(1, len(self.reference_points)):
-                P1 = self.reference_points[i-1] * M2P
-                P1 = P1[0], HEIGHT*M2P/2 - P1[1] + self.rocket.locZ * M2P
-                P2 = self.reference_points[i] * M2P
-                P2 = P2[0], HEIGHT*M2P/2 - P2[1] + self.rocket.locZ * M2P
+                P1 = (self.reference_points[i-1][0]*M2P,
+                     HEIGHT*M2P/2 - self.reference_points[i-1][1]*M2P + self.rocket.locZ * M2P)
+                P2 = (self.reference_points[i][0]*M2P,
+                     HEIGHT*M2P/2 - self.reference_points[i][1]*M2P + self.rocket.locZ * M2P)
                 pygame.draw.line(self.screen, RED, P1, P2)
 
         if self.draw_roc:
             for i in range(1, len(self.rocket_points)):
-                P1 = self.rocket_points[i-1] * M2P
-                P1 = P1[0], HEIGHT*M2P/2 - P1[1] + self.rocket.locZ * M2P
-                P2 = self.rocket_points[i] * M2P
-                P2 = P2[0], HEIGHT*M2P/2 - P2[1] + self.rocket.locZ * M2P
-                pygame.draw.line(self.screen, WHITE, P1, P2)
+                P1 = (self.rocket_points[i-1][0]*M2P,
+                     HEIGHT*M2P/2 - self.rocket_points[i-1][1]*M2P + self.rocket.locZ * M2P)
+                P2 = (self.rocket_points[i][0]*M2P,
+                     HEIGHT*M2P/2 - self.rocket_points[i][1]*M2P + self.rocket.locZ * M2P)
+                pygame.draw.line(self.screen, BLACK, P1, P2)
 
-        self.draw_rocket()
+    def add_reference_point(self, x, z):
+        self.reference_points.append((x, z))
+        if len(self.reference_points) > self.max_ref:
+            del self.reference_points[0]
 
     def update(self, verbose = False):
         self.screen.fill(BLACK)
@@ -114,7 +107,7 @@ class Simulation:
         self.rocket.move(self.windX, self.windZ, verbose = verbose)
         if self.rocket.locX < 0 or self.rocket.locX > WIDTH:
             self.reset()
-        # if self.rocket.locZ - fabs(cos(self.rocket.theta))*ROCKET_HEIGHT/2 < 0:
-        #     self.rocket.locZ = fabs(cos(self.rocket.theta))*ROCKET_HEIGHT/2
-        #     self.rocket.speedZ = 0
+        if self.ground_physics and self.rocket.locZ - fabs(cos(self.rocket.theta))*ROCKET_HEIGHT/2 < 0:
+            self.rocket.locZ = fabs(cos(self.rocket.theta))*ROCKET_HEIGHT/2
+            self.rocket.speedZ = 0
         pygame.display.flip()

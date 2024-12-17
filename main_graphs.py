@@ -5,27 +5,17 @@ from control import FullPIDController, FullPDController
 import matplotlib.pyplot as plt
 import sys
 
-class SimpleControl:
-    def __init__(self):
-        pass
-
-    def update_constants(self, a=0, b=0, c=0, d=0, e=0):
-        pass
-
-    def control(self, a=0, b=0, c=0, d=0, e=0):
-        return 5 * ROCKET_MASS * GRAVITY
-
 def main():
     """Performs a simulation controlled by the user,
     so the rocket dynamics can be tested and explored"""
+    speedCtrl = False
     windZ = 0
     windX = 0
-    speed = FullPIDController(D_TIME, MAX_THRUST)
-    # speed = SimpleControl()
+    speed = FullPIDController(D_TIME, 0, MAX_THRUST)
     pos = FullPDController(D_TIME, pi/96)
-    theta = FullPDController(D_TIME, pi/2)
+    theta = FullPDController(D_TIME, MAX_NOZZLE_ANGLE)
     rocket = Rocket(locX = 0)
-    rocket.set_controllers(speed_ctrl = speed, position_ctrl = pos, theta_ctrl = theta)
+    rocket.set_controllers(speed_ctrl = speed, position_ctrl = pos, theta_ctrl = theta, speedCtrl = speedCtrl)
     rocket.playable = False
     run = True
     theta_r = []
@@ -35,11 +25,15 @@ def main():
     thrust = []
     alpha = []
     sz = []
-    max_time = 40
-    XR = 20
+    szr = []
+    max_time = 50
+    XR = 10
+    Z_input = 100
     print("Running simulation...")
     for i in range(int(max_time//D_TIME)):
-        t = rocket.applyCommand(50, XR, windX, windZ)
+        if i > max_time/D_TIME/2:
+            Z_input += 0.5
+        t = rocket.applyCommand(Z_input, XR, windX, windZ)
         theta_r.append(t)
         alpha.append(rocket.nozzleAngle)
         thrust.append(rocket.thrust)
@@ -47,7 +41,12 @@ def main():
         rocket.move(windX, windZ)
         x.append(rocket.locX)
         theta.append(rocket.theta)
-        sz.append(rocket.speedZ)
+        if speedCtrl:
+            sz.append(rocket.speedZ)
+        else:
+            sz.append(rocket.locZ)
+        szr.append(Z_input)
+
     print("simulation finished")
 # Sample data (replace with actual data)
     t = [i*D_TIME for i in range(len(x))]  # Time
@@ -92,9 +91,10 @@ def main():
 # Adjust layout and show the plots
     plt.tight_layout()
     plt.show()
-
-    plt.plot(t, sz, label="Z speed", color = "red")
-    plt.title("Z Speed")
+    label = "Z speed" if speedCtrl else "Z position"
+    plt.plot(t, sz, label=label, color = "red")
+    plt.plot(t, szr, label="Reference" + label, color = 'blue')
+    plt.title(label)
     plt.grid()
     plt.show()
 

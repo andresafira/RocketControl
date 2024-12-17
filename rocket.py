@@ -35,10 +35,13 @@ class Rocket:
         self.nozzleAngle: float = 0
 
     def set_controllers(self, speed_ctrl: FullPIDController,
-                              position_ctrl: FullPDController, theta_ctrl = FullPDController):
+                        position_ctrl: FullPDController,
+                        theta_ctrl = FullPDController,
+                        speedCtrl: bool = True):
         self.speed_controller = speed_ctrl
         self.position_controller = position_ctrl
         self.theta_controller = theta_ctrl
+        self.speedCtrl = speedCtrl
 
     def increaseThrust(self):
         # Only accessible if self.playable = True
@@ -71,6 +74,18 @@ class Rocket:
         offset_command = ROCKET_MASS * GRAVITY - wind_term 
         self.speed_controller.update_constants(kp, ki, kd, offset_command)
 
+    def updateVerticalController(self, windZ):
+        xi = 0.8
+        omega = 1
+        k = 7
+        sign = sgn(windZ - self.speedZ)
+        kp = ROCKET_MASS * omega**2 * (1+ 2 * xi * k)
+        kd = ROCKET_MASS * omega * (k + 2*xi) - 2*AIR_RES_Z*sign*windZ
+        ki = ROCKET_MASS * k * omega ** 3
+        wind_term = AIR_RES_Z * (windZ**2 + self.speedZ**2) * sign
+        offset_command = ROCKET_MASS * GRAVITY - wind_term 
+        self.speed_controller.update_constants(kp, ki, kd, offset_command)
+
     def updatePositionController(self, windX, windZ):
         xi_x = 1
         omega_x = 5
@@ -98,8 +113,12 @@ class Rocket:
         theta_r = self.position_controller.control(xr, self.locX)
         self.nozzleAngle = self.theta_controller.control(theta_r, self.theta)
         
-        self.updateSpeedController(windZ)
-        self.thrust = self.speed_controller.control(vz, self.speedZ)
+        if self.speedCtrl:
+            self.updateSpeedController(windZ)
+            self.thrust = self.speed_controller.control(vz, self.speedZ)
+        else:
+            self.updateVerticalController(windZ)
+            self.thrust = self.speed_controller.control(vz, self.locZ)
         return theta_r
 
     def move(self, windX, windZ, verbose = False):
