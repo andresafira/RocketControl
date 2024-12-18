@@ -1,4 +1,4 @@
-from utils import sgn, eps
+from utils import sgn, eps, Params
 from constants import D_THRUST, MAX_THRUST, D_NOZZLE_ANGLE, MAX_NOZZLE_ANGLE, POS_CM, POS_CG
 from constants import AIR_RES_X, AIR_RES_Z, ROCKET_MASS, GRAVITY, INERTIA, D_TIME, INERTIA_NOZZLE
 from constants import THRUST_THRESHOLD
@@ -43,6 +43,15 @@ class Rocket:
         self.theta_controller = theta_ctrl
         self.speedCtrl = speedCtrl
 
+    def set_control_params(self, params):
+        self.xi_x = params.xi_x
+        self.omega_x = params.omega_x
+        self.xi_theta = params.xi_theta
+        self.omega_theta = params.omega_theta
+        self.xi_z = params.xi_z
+        self.omega_z = params.omega_z
+        self.k_z = params.k_z
+
     def increaseThrust(self):
         # Only accessible if self.playable = True
         self.thrust += D_THRUST
@@ -64,45 +73,36 @@ class Rocket:
         self.nozzleAngle = min(self.nozzleAngle, MAX_NOZZLE_ANGLE)
 
     def updateSpeedController(self, windZ):
-        xi = 0.7
-        omega = 10
         sign = sgn(windZ - self.speedZ)
-        kp = 2 * ROCKET_MASS * xi * omega + 2 * AIR_RES_Z * windZ
+        kp = 2 * ROCKET_MASS * self.xi_z * self.omega_z + 2 * AIR_RES_Z * windZ
         kd = 0
-        ki = ROCKET_MASS * omega ** 2
+        ki = ROCKET_MASS * self.omega_z ** 2
         wind_term = AIR_RES_Z * (windZ**2 + self.speedZ**2) * sign
         offset_command = ROCKET_MASS * GRAVITY - wind_term 
         self.speed_controller.update_constants(kp, ki, kd, offset_command)
 
     def updateVerticalController(self, windZ):
-        xi = 0.8
-        omega = 1
-        k = 7
         sign = sgn(windZ - self.speedZ)
-        kp = ROCKET_MASS * omega**2 * (1+ 2 * xi * k)
-        kd = ROCKET_MASS * omega * (k + 2*xi) - 2*AIR_RES_Z*sign*windZ
-        ki = ROCKET_MASS * k * omega ** 3
+        kp = ROCKET_MASS * self.omega_z**2 * (1+ 2 * self.xi_z * self.k_z)
+        kd = ROCKET_MASS * self.omega_z * (self.k_z + 2*self.xi_z) - 2*AIR_RES_Z*sign*windZ
+        ki = ROCKET_MASS * self.k_z * self.omega_z ** 3
         wind_term = AIR_RES_Z * (windZ**2 + self.speedZ**2) * sign
         offset_command = ROCKET_MASS * GRAVITY - wind_term 
         self.speed_controller.update_constants(kp, ki, kd, offset_command)
 
     def updatePositionController(self, windX, windZ):
-        xi_x = 1
-        omega_x = 5
         sign_x = sgn(windX - self.speedX)
         sign_z = sgn(windZ - self.speedZ)
         T = max(THRUST_THRESHOLD, self.thrust)
-        kd = 2 * (ROCKET_MASS * omega_x * xi_x - sign_x * AIR_RES_X * windX) / T
-        kp = ROCKET_MASS * omega_x**2 / T
-        offset_command = -sign_x * AIR_RES_X * (windX**2 + self.speedX**2) / T
+        kd = 2 * (ROCKET_MASS * self.omega_x * self.xi_x - sign_x * AIR_RES_X * windX) / T
+        kp = ROCKET_MASS * self.omega_x**2 / T
+        offset_command = -sign_x * AIR_RES_X * (windX**2 + self.speedX**2) / T - self.nozzleAngle
         self.position_controller.update_constants(kp, kd, offset_command)
 
-        xi_theta = 0.7
-        omega_theta = 10
         beta = (POS_CG - POS_CM) * AIR_RES_X * (windX - self.speedX)**2 * sign_x
         gamma = (POS_CG - POS_CM) * AIR_RES_Z * (windZ - self.speedZ)**2 * sign_z
-        kd = -2 * INERTIA * xi_theta * omega_theta / (T * POS_CM)
-        kp = (gamma - INERTIA * omega_theta**2) / (T * POS_CM)
+        kd = -2 * INERTIA * self.xi_theta * self.omega_theta / (T * POS_CM)
+        kp = (gamma - INERTIA * self.omega_theta**2) / (T * POS_CM)
         offset_command = beta / (T * POS_CM)
         self.theta_controller.update_constants(kp, kd, offset_command)
     

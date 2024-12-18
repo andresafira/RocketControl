@@ -1,5 +1,28 @@
 eps = 1e-4
 
+class Params:
+    def __init__(self, xi_x, omega_x,
+                       xi_z, omega_z, k_z,
+                 xi_theta, omega_theta):
+        self.xi_x = xi_x
+        self.omega_x = omega_x
+        self.xi_theta = xi_theta
+        self.omega_theta = omega_theta
+        self.xi_z = xi_z
+        self.omega_z = omega_z
+        self.k_z = k_z
+
+class Response:
+    def __init__(self):
+        self.theta = []
+        self.theta_r = []
+        self.x = []
+        self.x_r = []
+        self.z = []
+        self.z_r = []
+        self.thrust = []
+        self.alpha = []
+
 def sgn(x: float|int) -> int:
     """Function that returns the sign of a number. Notice that there is a threshold of eps
     :param x: number to be analyzed

@@ -52,7 +52,7 @@ class Simulation:
         self.screen.blit(sprite, anchored_pos)
 
     def draw_rocket(self):
-        fire_rot = self.rocket.theta + 2*self.rocket.nozzleAngle
+        fire_rot = self.rocket.theta + self.rocket.nozzleAngle
         fire_height = FIRE_HEIGHT * self.rocket.thrust / MAX_THRUST
         fire = rotate(scale(self.fire_sprite, (FIRE_WIDTH*M2P, fire_height * M2P)), -fire_rot * 180 / pi)
         

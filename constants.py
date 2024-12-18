@@ -6,7 +6,7 @@ WIDTH = 120
 HEIGHT = 70
 
 #  Sample time parameters
-FREQUENCY = 60.0
+FREQUENCY = 60
 D_TIME = 1.0 / FREQUENCY
 
 # Sprite locations

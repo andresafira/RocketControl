@@ -220,4 +220,4 @@ class FullPDController:
         """Control function that applies the filter to the input
         value and then performs the PD Control on the new reference"""
         yr_f = self.filter.control(yr)
-        return self.PD.control(yr, y) + self.u0
+        return self.PD.control(yr_f, y) + self.u0
