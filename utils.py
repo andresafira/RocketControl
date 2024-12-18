@@ -2,8 +2,8 @@ eps = 1e-4
 
 class Params:
     def __init__(self, xi_x, omega_x,
-                       xi_z, omega_z, k_z,
-                 xi_theta, omega_theta):
+                       xi_theta, omega_theta,
+                       xi_z, omega_z, k_z):
         self.xi_x = xi_x
         self.omega_x = omega_x
         self.xi_theta = xi_theta

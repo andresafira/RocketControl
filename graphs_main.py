@@ -8,8 +8,7 @@ from cmaes import CMA
 import numpy as np
 import sys
 
-GRID_SEARCH = False
-SPEED_CTRL = True
+SPEED_CTRL = False
 
 def cost(actual: list, reference: list):
     if len(actual) != len(reference):
@@ -85,6 +84,7 @@ def main(params: Params, plot: bool) -> Response:
         plt.grid()
 # Adjust layout and show the plots
         plt.tight_layout()
+        plt.savefig('output/X_opt.eps', format='eps')
         plt.show()
 
 # Plot 1: z vs t
@@ -105,34 +105,36 @@ def main(params: Params, plot: bool) -> Response:
         plt.grid()
 # Adjust layout and show the plots
         plt.tight_layout()
+        plt.savefig('output/Z_opt.eps', format='eps')
         plt.show()
 
     return resp
 
 if __name__ == "__main__":
-    if GRID_SEARCH:
-        # initial = np.array([1, 10, 0.8, 10, 0.8, 1, 7])
-        # bounds = np.array([[0.1, 1], [1, 50], [0.1, 1], [1, 50], [0.1, 1], [1, 50], [5, 10]])
-        initial = np.array([1, 10, 0.8, 10])
-        bounds = np.array([[0.1, 1], [1, 50], [0.1, 1], [5, 10]])
-        opt = CMA(mean = initial, bounds = bounds, sigma = 1.3)
-        for generation in range(100):
-                solutions = []
-                for _ in range(opt.population_size):
-                    x = opt.ask()
-                    params = Params(*x, 0.8, 1, 7)
-                    resp = main(params, plot = False)
-                    value = cost(resp.x[15*60:], resp.x_r[15*60:])
-                    solutions.append((x, value))
-                    print(f"#{generation} {value}")
-                opt.tell(solutions)
+    initial = np.array([1, 10, 0.8, 10])
+    bounds = np.array([[0.1, 1], [1, 50], [0.1, 1], [1, 50]])
+    opt = CMA(mean = initial, bounds = bounds, sigma = 1.3)
+    for generation in range(100):
+            solutions = []
+            for _ in range(opt.population_size):
+                x = opt.ask()
+                params = Params(*x, 0.8, 1, 7)
+                resp = main(params, plot = False)
+                value = cost(resp.x + resp.z, resp.x_r + resp.z_r)
+                solutions.append((x, value))
+                print(f"#{generation} {value}")
+            opt.tell(solutions)
+    min = 1e10
+    x_min = None
+    for _ in range(opt.population_size):
         x = opt.ask()
-        print("\n\n\n\n\n\n", x)
         params = Params(*x, 0.8, 1, 7)
-        main(params, plot = True)
-    else:
-        params = Params(xi_x = 0.98979, omega_x = 1.0764,
-                        xi_theta = 0.430022, omega_theta = 6.4624,
-                        xi_z = 0.8, omega_z = 1, k_z = 7)
-        main(params, True)
+        resp = main(params, plot = False)
+        value = cost(resp.x + resp.z, resp.x_r + resp.z_r)
+        if value < min:
+            min = value
+            x_min = x
+    print("\n\n\n\n\n\n", x_min)
+    params = Params(*x_min, 0.8, 1, 7)
+    main(params, plot = True)
     sys.exit()
