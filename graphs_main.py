@@ -8,7 +8,11 @@ from cmaes import CMA
 import numpy as np
 import sys
 
-SPEED_CTRL = False
+# The following file is responsible to perform an optimization search to minimize
+# the error of a controller, based on the parameters xi and omega of all the loops.
+# It uses CMAes to do the search.
+SPEED_CTRL = False # if True, the controller will control speed, else, it will control
+                   # the vertical position instead.
 
 def cost(actual: list, reference: list):
     if len(actual) != len(reference):
@@ -111,7 +115,8 @@ def main(params: Params, plot: bool) -> Response:
     return resp
 
 if __name__ == "__main__":
-    initial = np.array([1, 10, 0.8, 10])
+    # initial values (input) for the optimization algorithm
+    initial = np.array([1, 10, 0.8, 10]) # only 4 params (only testing horizontal position)
     bounds = np.array([[0.1, 1], [1, 50], [0.1, 1], [1, 50]])
     opt = CMA(mean = initial, bounds = bounds, sigma = 1.3)
     for generation in range(100):

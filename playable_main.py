@@ -4,6 +4,8 @@ from control import FullPIDController, FullPDController
 import pygame
 import sys
 
+# This file simulates a rocket controlled by the user, using the WASD ou arrow keys
+
 def main():
     """Performs a simulation controlled by the user,
     so the rocket dynamics can be tested and explored"""

@@ -6,10 +6,20 @@ import matplotlib.pyplot as plt
 import pygame
 import sys
 
+# This file is responsible to perform the simulation of a specified controller
+# The parameters are defined at the end of the file, and the 'main' function
+# performs the simulation and also plots the graphs of it
+# 
+
 def main(params: Params) -> Response:
     """Performs a simulation controlled by the user,
     so the rocket dynamics can be tested and explored"""
-    SPEED_CTRL = False
+    XR = WIDTH/2 + 20   # Horizontal Position of reference
+    Z_input = 100       # Vertical Parameter of reference (it can be, speed or position, based on SPEED_CTRL)
+    max_time = 50  # in seconds
+    SPEED_CTRL = False # if True, the vertical controller will control the vertical speed
+                       # if False, it will control the vertical position, instead.
+    
     sim = Simulation(draw_reference_line=True, draw_rocket_line=True)
     windZ = 0
     windX = 0
@@ -21,11 +31,7 @@ def main(params: Params) -> Response:
     resp = Response()
     sim.rocket.playable = False
     run = True
-
-    max_time = 30
     time = 0
-    XR = WIDTH/2 + 20
-    Z_input = 100
 
     while run:
         pygame.time.Clock().tick(FREQUENCY)
@@ -110,6 +116,7 @@ def main(params: Params) -> Response:
 
 
 if __name__ == "__main__":
+    # The meaning of the following parameters is specified at the report pdf file
     params = Params(xi_x = 1, omega_x = 10,
                     xi_theta = 0.8, omega_theta = 10,
                     xi_z = 0.8, omega_z = 1, k_z = 7)
